@@ -1,0 +1,384 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Nov 15 15:01:35 2023
+
+@author: Andrew Kramer
+"""
+
+import numpy as np
+import xarray as xr
+from matplotlib import pyplot as plt
+import metpy
+import metpy.calc 
+from metpy.units import units
+from metpy.plots import add_metpy_logo, SkewT
+import netCDF4 as nc
+#%%
+directoryC = 'C:/Users/andre/Desktop/UND/Thesis Work/Model Runs/CM1_Jan18_Part2/Control/cm1out.nc'
+dsC = xr.load_dataset(directoryC)
+directoryS = 'C:/Users/andre/Desktop/UND/Thesis Work/Model Runs/CM1_Jan18_Part2/Capped/cm1out.nc'
+dsS = xr.load_dataset(directoryS)
+
+#%%Cap Run Bottom
+wS2 = (dsS.variables['winterp'][:,4,:,:])
+pressure = ((dsS.variables['prs'][:,4,:,:])/100)*units.hPa
+theta = (dsS.variables['th'][:,4,:,:])*units.kelvin
+mr = dsS.variables['qv'][:,4,:,:]*units('g/kg')
+temperature = metpy.calc.temperature_from_potential_temperature(pressure.data, theta.data)
+rhSB = metpy.calc.relative_humidity_from_mixing_ratio(pressure.data, temperature, mr.data)
+td = metpy.calc.dewpoint_from_relative_humidity(temperature, rhSB)
+theSB = metpy.calc.equivalent_potential_temperature(pressure.data, temperature, td)
+#%%Cap Run Top
+pressure = ((dsS.variables['prs'][:,7,:,:])/100)*units.hPa
+theta = (dsS.variables['th'][:,7,:,:])*units.kelvin
+mr = dsS.variables['qv'][:,7,:,:]*units('g/kg')
+temperature = metpy.calc.temperature_from_potential_temperature(pressure.data, theta.data)
+rh = metpy.calc.relative_humidity_from_mixing_ratio(pressure.data, temperature, mr.data)
+td = metpy.calc.dewpoint_from_relative_humidity(temperature, rh)
+theST = metpy.calc.equivalent_potential_temperature(pressure.data, temperature, td)
+#%% Control Run Bottom
+pressureC = ((dsC.variables['prs'][:,4,:,:])/100)*units.hPa
+thetaC = (dsC.variables['th'][:,4,:,:])*units.kelvin
+mrC = dsC.variables['qv'][:,4,:,:]*units('g/kg')
+temperatureC = metpy.calc.temperature_from_potential_temperature(pressureC.data, thetaC.data)
+rhC = metpy.calc.relative_humidity_from_mixing_ratio(pressureC.data, temperatureC, mrC.data)
+tdC = metpy.calc.dewpoint_from_relative_humidity(temperatureC, rhC)
+theCB = metpy.calc.equivalent_potential_temperature(pressureC.data, temperatureC, tdC)
+
+
+#%%Control Run Top
+pressure = ((dsC.variables['prs'][:,6,:,:])/100)*units.hPa
+theta = (dsC.variables['th'][:,6,:,:])*units.kelvin
+mr = dsC.variables['qv'][:,6,:,:]*units('g/kg')
+temperature = metpy.calc.temperature_from_potential_temperature(pressure.data, theta.data)
+rh = metpy.calc.relative_humidity_from_mixing_ratio(pressure.data, temperature, mr.data)
+td = metpy.calc.dewpoint_from_relative_humidity(temperature, rh)
+theCT = metpy.calc.equivalent_potential_temperature(pressure.data, temperature, td)
+
+#%% Plotting
+DeltaC = theCT - theCB
+DeltaS = theST - theSB
+deltathe = theSB-theCB
+DeltaD = DeltaS - DeltaC
+
+
+for i in np.arange(30,76,1):
+    plt.imshow(deltathe[i,:,:], cmap='seismic', vmin=-6, vmax=0)
+    plt.colorbar()
+    plt.contour(wS2[i,:,:], cmap='gray', levels=[-1,-.5,0])
+    
+    plt.title("Capped - Uncapped Surface ThetaE at time:"+ str(i) +" Minutes")
+    plt.show()
+
+#%%
+for i in np.arange(30,91,1):
+    plt.imshow(DeltaD[i,:,:], cmap = 'seismic', vmax=10, vmin=-10)
+    plt.colorbar()
+    plt.contour(wS2[i,:,:], cmap='gray', levels=[-1,-.5,0])
+    plt.title("Capped - Uncapped DeltaThetaE at time..."+str(i))
+    plt.savefig("C:/Users/andre/Desktop/UND/Thesis Work/Model Runs/NewBSSMethod/plots/DeltaDeltaTe"+str(i)+".png")
+    plt.show()
+    
+    plt.show()
+    
+#%%
+directoryC = 'C:/Users/andre/Desktop/UND/Thesis Work/Model Runs/CM1_Jan18_Part2/Control/cm1out.nc'
+dsC = xr.load_dataset(directoryC)
+directoryS = 'C:/Users/andre/Desktop/UND/Thesis Work/Model Runs/CM1_Jan18_Part2/Capped/cm1out.nc'
+dsS = xr.load_dataset(directoryS)
+
+#%%
+t = 90
+var = 'winterp'
+ControlMinWinterp = []
+StrongMinWinterp = []
+TempMinWinterp = []
+level = 3
+level2 = 8
+for i in np.arange(0,75,1):
+    indexC = (np.max(dsC.variables[var][i,8,:,:]))
+    indexS = (np.max(dsS.variables[var][i,8,:,:]))
+    #indexT = (np.min(dsT.variables['winterp'][i,5,:,:]))
+    ControlMinWinterp.append(indexC)
+    StrongMinWinterp.append(indexS)
+    #TempMinWinterp.append(indexT)
+    
+print(len(ControlMinWinterp))
+print(len(StrongMinWinterp))
+print(ControlMinWinterp)
+print(StrongMinWinterp)
+
+plt.plot(ControlMinWinterp, color = 'k')
+plt.plot(StrongMinWinterp, color = 'r')
+#plt.plot(TempMinWinterp, color = 'r')
+plt.title("a. Maximum Updraft at Cap Top")
+plt.axvline(30, linestyle='--')
+plt.axvline(42, linestyle='--')
+plt.xlabel("Time Step (Minutes)")
+plt.ylabel("Vertical Windspeed (m/s)")
+#plt.ylim(40,70)
+#plt.legend()
+plt.show()
+
+t = 90
+ControlMinWinterp = []
+StrongMinWinterp = []
+TempMinWinterp = []
+for i in np.arange(0,75,1):
+    indexC = (np.min(dsC.variables[var][i,2,:,:]))
+    indexS = (np.min(dsS.variables[var][i,2,:,:]))
+    #indexT = (np.min(dsT.variables['winterp'][i,5,:,:]))
+    ControlMinWinterp.append(indexC)
+    StrongMinWinterp.append(indexS)
+    #TempMinWinterp.append(indexT)
+    
+print(len(ControlMinWinterp))
+print(len(StrongMinWinterp))
+print(ControlMinWinterp)
+print(StrongMinWinterp)
+
+plt.plot(ControlMinWinterp, color = 'k')
+plt.plot(StrongMinWinterp, color = 'r')
+#plt.plot(TempMinWinterp, color = 'r')
+plt.title("b. Maximum Downdraft at Cap Base.")
+plt.axvline(30, linestyle='--')
+plt.axvline(42, linestyle='--')
+plt.xlabel("Time Step (Minutes)")
+plt.ylabel("Vertical Windspeed (m/s)")
+#plt.ylim(40,60)
+#plt.legend()
+plt.show()
+
+#%% Relative Humidity Checker
+directoryC = 'C:/Users/andre/Desktop/UND/Thesis Work/Model Runs/CM1_Jan18_Part2/Control/cm1out.nc'
+dsC = xr.load_dataset(directoryC)
+directoryS = 'C:/Users/andre/Desktop/UND/Thesis Work/Model Runs/CM1_Jan18_Part2/Capped/cm1out.nc'
+dsS = xr.load_dataset(directoryS)
+
+x = 59
+y = 39
+z = 6
+CRH = []
+SRH = []
+#print(dsS['qv'][0,8,2,2])
+
+for t in np.arange(0,75,1):
+    pressureC = ((dsC.variables['prs'][t,z,y,x])/100)*units.hPa
+    thetaC = (dsC.variables['th'][t,z,y,x])*units.K
+    mrC = dsC.variables['qv'][t,z,y,x]*units('kg/kg')
+    temperatureC = metpy.calc.temperature_from_potential_temperature(pressureC.data, thetaC.data)
+    rhC = metpy.calc.relative_humidity_from_mixing_ratio(pressureC.data, temperatureC, (mrC.data))
+    rhC = rhC*100
+    #############################################################################################
+    pressureS = ((dsS.variables['prs'][t,z,y,x])/100)*units.hPa
+    thetaS = (dsS.variables['th'][t,z,y,x])*units.kelvin
+    mrS = dsC.variables['qv'][t,z,y,x]*units('kg/kg')
+    temperatureS = metpy.calc.temperature_from_potential_temperature(pressureS.data, thetaS.data)
+    rhS = metpy.calc.relative_humidity_from_mixing_ratio(pressureS.data, temperatureS, (mrS.data))
+    rhS = rhS*100
+    ##############################################################################################
+    CRH.append(rhC)
+    SRH.append(rhS)
+    
+plt.plot(CRH, color = 'k')
+plt.plot(SRH, color = 'r')
+#plt.plot(TempMinWinterp, color = 'r')
+plt.title("Relative Humidity At The Cap Base")
+plt.axvline(30)
+plt.axvline(42)
+plt.axhline(100, color='green')
+plt.xlabel("Minutes into Run")
+plt.ylabel("Relative Humidity (%)")
+plt.legend()
+plt.show()
+#%%
+pressureC = ((dsC.variables['prs'][45,:,20,20])/100)*units.hPa
+thetaC = (dsC.variables['th'][45,:,20,20])*units.kelvin
+mrC = dsC.variables['qv'][45,:,20,20]*units('g/kg')
+#print(pressure,theta,mr)
+temperatureC = metpy.calc.temperature_from_potential_temperature(pressureC.data, thetaC.data)
+rhC = metpy.calc.relative_humidity_from_mixing_ratio(pressureC.data, temperatureC, mrC.data)
+tdC = metpy.calc.dewpoint_from_relative_humidity(temperatureC, rhC)
+theCT = metpy.calc.equivalent_potential_temperature(pressureC.data, temperatureC, tdC)
+
+skew = SkewT()
+
+
+skew.plot(pressureC, temperatureC, 'r')
+skew.plot(pressureC, tdC, 'g')
+
+skew.ax.set_xlabel('Temperature (\N{DEGREE CELSIUS})')
+skew.ax.set_ylabel('Pressure (mb)')
+
+
+skew.plot_dry_adiabats()
+skew.plot_moist_adiabats()
+skew.plot_mixing_lines()
+skew.ax.set_ylim(1000, 500)
+skew.ax.set_xlim(-10, 30)
+
+
+fig = plt.gcf()
+
+
+#%%
+
+import numpy as np
+import xarray as xr
+from matplotlib import pyplot as plt
+import metpy
+import metpy.calc 
+from metpy.units import units
+from metpy.plots import add_metpy_logo, SkewT
+
+directoryC = 'C:/Users/andre/Desktop/UND/Thesis Work/Model Runs/CM1_Jan18_Part2/Control/cm1out.nc'
+dsC = xr.load_dataset(directoryC)
+directoryS = 'C:/Users/andre/Desktop/UND/Thesis Work/Model Runs/CM1_Jan18_Part2/Capped/cm1out.nc'
+dsS = xr.load_dataset(directoryS)
+#%%
+
+x = 49
+y = 39
+for t in np.arange(00,10,5):
+    print(t)
+    pressureC = ((dsC.variables['prs'][t,:,y,x])/100)*units.hPa
+    thetaC = (dsC.variables['th'][t,:,y,x])*units.kelvin
+    mrC = dsC.variables['qv'][t,:,y,x]*units('kg/kg')
+    
+    pressureS = ((dsS.variables['prs'][t,:,y,x])/100)*units.hPa
+    thetaS = (dsS.variables['th'][t,:,y,x])*units.kelvin
+    mrS = dsS.variables['qv'][t,:,y,x]*units('kg/kg')
+    
+    temperatureC = metpy.calc.temperature_from_potential_temperature(pressureC.data, thetaC.data)
+    rhC = metpy.calc.relative_humidity_from_mixing_ratio(pressureC.data, temperatureC, mrC.data)
+    tdC = metpy.calc.dewpoint_from_relative_humidity(temperatureC, rhC)
+    theCT = metpy.calc.equivalent_potential_temperature(pressureC.data, temperatureC, tdC)
+    
+    temperatureS = metpy.calc.temperature_from_potential_temperature(pressureS.data, thetaS.data)
+    rhS = metpy.calc.relative_humidity_from_mixing_ratio(pressureC.data, temperatureC, mrS.data)
+    tdS = metpy.calc.dewpoint_from_relative_humidity(temperatureS, rhS)
+    theST = metpy.calc.equivalent_potential_temperature(pressureS.data, temperatureS, tdS)
+    
+    uC = dsC.variables['uinterp'][t,:,y,x]
+    uC = uC * 1.94384
+    vC = dsC.variables['vinterp'][t,:,y,x]
+    vC = vC * 1.94384
+    uS = dsS.variables['uinterp'][t,:,y,x]
+    vS = dsS.variables['vinterp'][t,:,y,x]
+    print("test")
+    mtP = []
+    mtU = []
+    mtV = []
+    for i in np.arange(0,80,5):
+        print(i)
+        mtP.append(pressureC[i])
+        mtU.append(uC[i]) 
+        mtV.append(vC[i])
+    
+    prof = metpy.calc.parcel_profile(pressureC, temperatureC[0], tdC[0]).to('degC')
+    skew = SkewT()
+    
+    
+    skew.plot(pressureC, temperatureC, 'r', linewidth=2.0)
+    skew.plot(pressureC, tdC, 'g', linewidth = 2.0)
+    #skew.plot(pressureS, temperatureS, 'maroon')
+    #skew.plot(pressureS, tdS, 'darkgreen', linestyle=':')
+    skew.plot_barbs(mtP[0:14], mtU[0:14], mtV[0:14])
+    
+    
+    skew.ax.set_xlabel('Temperature (\N{DEGREE CELSIUS})')
+    skew.ax.set_ylabel('Pressure (mb)')
+    skew.ax.set_title("Modified Weisman and Klemp (1984) Sounding")
+    
+   
+    skew.plot_dry_adiabats(linewidth=0.5)
+    skew.plot_moist_adiabats(linewidth=0.5)
+    
+    skew.ax.set_ylim(1000, 100)
+    skew.ax.set_xlim(-40, 50)
+    
+
+plt.show(dpi=1200)
+#%%
+import numpy as np
+import xarray as xr
+from matplotlib import pyplot as plt
+import metpy
+import metpy.calc 
+from metpy.units import units
+from metpy.plots import add_metpy_logo, SkewT
+
+directoryC = 'C:/Users/andre/Desktop/UND/Thesis Work/Model Runs/CM1_Jan18_Part2/Control/cm1out.nc'
+dsC = xr.load_dataset(directoryC)
+directoryS = 'C:/Users/andre/Desktop/UND/Thesis Work/Model Runs/CM1_Jan18_Part2/Capped/cm1out.nc'
+dsS = xr.load_dataset(directoryS)
+#t = 45
+x = 0
+y = 0
+t1 = 45
+t2 = 29
+pressureC = (np.mean(dsS.variables['prs'][t1,:,:,:])/100)*units.hPa
+thetaC = (np.mean(dsS.variables['th'][t1,:,:,:])*units.K)
+mrC = np.mean(dsS.variables['qv'][t1,:,:,:]*units('kg/kg'))
+
+pressureS = (np.mean(dsS.variables['prs'][t2,:,:,:])/100)*units.hPa
+thetaS = np.mean((dsS.variables['th'][t2,:,:,:])*units.K)
+mrS = np.mean(dsS.variables['qv'][t2,:,:,:]*units('kg/kg'))
+
+#print(pressure,theta,mr)
+temperatureC = metpy.calc.temperature_from_potential_temperature(pressureC.data, thetaC.data)
+rhC = metpy.calc.relative_humidity_from_mixing_ratio(pressureC.data, temperatureC, mrC.data)
+tdC = metpy.calc.dewpoint_from_relative_humidity(temperatureC, rhC)
+theCT = metpy.calc.equivalent_potential_temperature(pressureC.data, temperatureC, tdC)
+
+temperatureS = metpy.calc.temperature_from_potential_temperature(pressureS.data, thetaS.data)
+rhS = metpy.calc.relative_humidity_from_mixing_ratio(pressureC.data, temperatureC, mrS.data)
+tdS = metpy.calc.dewpoint_from_relative_humidity(temperatureS, rhS)
+theST = metpy.calc.equivalent_potential_temperature(pressureS.data, temperatureS, tdS)
+
+skew = SkewT()
+
+
+skew.plot(pressureC, temperatureC, 'r')
+skew.plot(pressureC, tdC, 'g')
+skew.plot(pressureS, temperatureS, 'maroon')
+skew.plot(pressureS, tdS, 'darkgreen')
+
+
+
+skew.ax.set_xlabel('Temperature (\N{DEGREE CELSIUS})')
+skew.ax.set_ylabel('Pressure (mb)')
+
+skew.plot_dry_adiabats()
+skew.plot_moist_adiabats()
+skew.plot_mixing_lines()
+skew.ax.set_ylim(500, 1000)
+skew.ax.set_xlim(-10, 30)
+
+
+
+
+
+#%%
+pressureC = ((dsC.variables['prs'][16,4,40,120])/100)*units.hPa
+thetaC = (dsC.variables['th'][16,4,40,70])*units.kelvin
+mrC = dsC.variables['qv'][16,4,40,70]*units('g/kg')
+pressureCt = ((dsC.variables['prs'][16,7,40,70])/100)*units.hPa
+thetaCt = (dsC.variables['th'][16,7,40,70])*units.kelvin
+mrCt = dsC.variables['qv'][16,7,20,70]*units('g/kg')
+
+pressureS = ((dsS.variables['prs'][16,4,20,70])/100)*units.hPa
+thetaS = (dsS.variables['th'][16,4,20,70])*units.kelvin
+mrS = dsS.variables['qv'][16,4,20,70]*units('g/kg')
+pressureSt = ((dsS.variables['prs'][16,7,20,70])/100)*units.hPa
+thetaSt = (dsS.variables['th'][16,7,20,70])*units.kelvin
+mrSt = dsS.variables['qv'][16,7,20,70]*units('g/kg')
+
+temperatureC = metpy.calc.temperature_from_potential_temperature(pressureC.data, thetaC.data)
+temperatureCt = metpy.calc.temperature_from_potential_temperature(pressureCt.data, thetaCt.data)
+temperatureS = metpy.calc.temperature_from_potential_temperature(pressureS.data, thetaS.data)
+temperatureSt = metpy.calc.temperature_from_potential_temperature(pressureSt.data, thetaSt.data)
+
+print((temperatureCt-temperatureC)/.750)
+print((temperatureSt-temperatureS)/.750)
+
